@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workshop Countdown Timer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070707;
+      --panel: #131313;
+      --panel-2: #1d1d1d;
+      --text: #f7f7f7;
+      --muted: #a3a3a3;
+      --subtle: #5f5f5f;
+      --tick: #555;
+      --red: #f43f43;
+      --red-dark: #c82e32;
+      --green: #5dd39e;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+    }
+
+    body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100%;
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) minmax(280px, 380px);
+      gap: clamp(20px, 4vw, 48px);
+      align-items: center;
+      padding: clamp(18px, 4vw, 56px);
+    }
+
+    .timer-stage {
+      min-width: 0;
+      display: grid;
+      place-items: center;
+      position: relative;
+    }
+
+    .timer-wrap {
+      width: min(78vmin, 820px);
+      aspect-ratio: 1;
+      position: relative;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .center-readout {
+      position: absolute;
+      inset: 29%;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .center-readout.is-hidden {
+      display: none;
+    }
+
+    .countdown {
+      font-size: clamp(42px, 8vw, 96px);
+      line-height: 0.9;
+      letter-spacing: 0;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .countdown-label {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: clamp(13px, 1.7vw, 18px);
+      line-height: 1.35;
+    }
+
+    .controls {
+      align-self: stretch;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 18px;
+      min-width: 0;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid #272727;
+      border-radius: 8px;
+      padding: 18px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .time-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid #393939;
+      background: #0c0c0c;
+      color: var(--text);
+      border-radius: 6px;
+      padding: 13px 14px;
+      outline: none;
+      min-height: 48px;
+    }
+
+    input:focus {
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgb(244 63 67 / 18%);
+    }
+
+    button {
+      border: 1px solid #3d3d3d;
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 6px;
+      min-height: 44px;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: #6b6b6b;
+      background: #242424;
+    }
+
+    .primary {
+      background: var(--red);
+      border-color: var(--red);
+      color: #080808;
+      font-weight: 800;
+    }
+
+    .primary:hover {
+      background: #ff5659;
+      border-color: #ff5659;
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .meta {
+      display: grid;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.35;
+    }
+
+    .meta strong {
+      display: block;
+      color: var(--text);
+      font-size: 23px;
+      line-height: 1.1;
+      margin-top: 3px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status {
+      min-height: 22px;
+      color: var(--green);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .status.error {
+      color: #ff777a;
+    }
+
+    .progress {
+      height: 7px;
+      border-radius: 999px;
+      background: #2c2c2c;
+      overflow: hidden;
+    }
+
+    .progress span {
+      display: block;
+      width: 0%;
+      height: 100%;
+      background: var(--red);
+      transition: width 0.2s linear;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.3;
+    }
+
+    .toggle-row input {
+      width: 46px;
+      min-height: 24px;
+      height: 24px;
+      appearance: none;
+      border-radius: 999px;
+      padding: 0;
+      background: #383838;
+      border: 1px solid #4a4a4a;
+      position: relative;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+
+    .toggle-row input::after {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #cfcfcf;
+      transition: transform 0.16s ease, background 0.16s ease;
+    }
+
+    .toggle-row input:checked {
+      background: var(--red);
+      border-color: var(--red);
+    }
+
+    .toggle-row input:checked::after {
+      transform: translateX(22px);
+      background: #090909;
+    }
+
+    .full-screen .app {
+      grid-template-columns: 1fr;
+      padding: min(4vw, 34px);
+    }
+
+    .full-screen .controls {
+      display: none;
+    }
+
+    .full-screen .timer-wrap {
+      width: min(94vmin, 980px);
+    }
+
+    @media (max-width: 860px) {
+      .app {
+        grid-template-columns: 1fr;
+        align-items: start;
+      }
+
+      .timer-wrap {
+        width: min(94vw, 680px);
+      }
+
+      .controls {
+        width: min(100%, 680px);
+        justify-self: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="Workshop countdown timer">
+    <section class="timer-stage">
+      <div class="timer-wrap">
+        <canvas id="timerCanvas" aria-label="Circular countdown meter"></canvas>
+        <div class="center-readout" id="centerReadout" aria-live="polite">
+          <div>
+            <div class="countdown" id="countdown">--:--</div>
+            <div class="countdown-label" id="countdownLabel">Set a target time</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="controls">
+      <section class="panel">
+        <form id="targetForm" class="field">
+          <label for="targetInput">Target Time</label>
+          <div class="time-row">
+            <input id="targetInput" autocomplete="off" inputmode="text" placeholder="1:15pm">
+            <button class="primary" type="submit">Set</button>
+          </div>
+          <div class="status" id="status">Use times like 1:15pm, 13:15, or 45m.</div>
+        </form>
+
+        <div class="quick-grid" aria-label="Quick timer buttons">
+          <button type="button" data-add-minutes="5">+5 min</button>
+          <button type="button" data-add-minutes="10">+10 min</button>
+          <button type="button" data-add-minutes="15">+15 min</button>
+          <button type="button" data-add-minutes="30">+30 min</button>
+        </div>
+      </section>
+
+      <section class="panel meta">
+        <div>
+          Now
+          <strong id="nowText">--:--</strong>
+        </div>
+        <div>
+          Target
+          <strong id="targetText">--</strong>
+        </div>
+        <div>
+          Remaining In 1-Hour Meter
+          <strong id="remainingText">--</strong>
+        </div>
+        <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+      </section>
+
+      <section class="toolbar">
+        <button type="button" id="fullscreenBtn">Full screen</button>
+        <button type="button" id="resetBtn">Clear</button>
+      </section>
+
+      <section class="panel">
+        <label class="toggle-row" for="countdownToggle">
+          <span>Show real-time countdown</span>
+          <input id="countdownToggle" type="checkbox" checked>
+        </label>
+      </section>
+    </aside>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('timerCanvas');
+    const ctx = canvas.getContext('2d');
+    const targetForm = document.getElementById('targetForm');
+    const targetInput = document.getElementById('targetInput');
+    const countdown = document.getElementById('countdown');
+    const countdownLabel = document.getElementById('countdownLabel');
+    const centerReadout = document.getElementById('centerReadout');
+    const nowText = document.getElementById('nowText');
+    const targetText = document.getElementById('targetText');
+    const remainingText = document.getElementById('remainingText');
+    const progressBar = document.getElementById('progressBar');
+    const statusText = document.getElementById('status');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const countdownToggle = document.getElementById('countdownToggle');
+
+    const state = {
+      target: null,
+      expired: false,
+      showCountdown: true
+    };
+
+    function pad(value) {
+      return String(value).padStart(2, '0');
+    }
+
+    function formatClock(date) {
+      return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+
+    function parseTarget(raw, now = new Date()) {
+      const text = raw.trim().toLowerCase().replace(/\s+/g, '');
+      if (!text) return null;
+
+      const minutesMatch = text.match(/^(\d{1,3})m(?:in)?$/);
+      if (minutesMatch) {
+        const minutes = Number(minutesMatch[1]);
+        if (!Number.isFinite(minutes) || minutes <= 0) return null;
+        return new Date(now.getTime() + minutes * 60 * 1000);
+      }
+
+      const match = text.match(/^(\d{1,2})(?::(\d{2}))?(am|pm)?$/);
+      if (!match) return null;
+
+      let hour = Number(match[1]);
+      const minute = match[2] === undefined ? 0 : Number(match[2]);
+      const period = match[3];
+      if (minute < 0 || minute > 59) return null;
+
+      if (period) {
+        if (hour < 1 || hour > 12) return null;
+        if (period === 'am') hour = hour === 12 ? 0 : hour;
+        if (period === 'pm') hour = hour === 12 ? 12 : hour + 12;
+      } else if (hour > 23) {
+        return null;
+      }
+
+      const target = new Date(now);
+      target.setHours(hour, minute, 0, 0);
+      if (target <= now) target.setDate(target.getDate() + 1);
+      return target;
+    }
+
+    function setTarget(target) {
+      state.target = target;
+      state.expired = false;
+      targetInput.value = formatClock(target);
+      statusText.textContent = `Counting down to ${formatClock(target)}.`;
+      statusText.classList.remove('error');
+      render();
+    }
+
+    function clearTarget() {
+      state.target = null;
+      state.expired = false;
+      targetInput.value = '';
+      statusText.textContent = 'Use times like 1:15pm, 13:15, or 45m.';
+      statusText.classList.remove('error');
+      render();
+    }
+
+    function formatRemaining(ms) {
+      const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      if (hours > 0) return `${hours}:${pad(minutes)}:${pad(seconds)}`;
+      return `${minutes}:${pad(seconds)}`;
+    }
+
+    function drawWedge(cx, cy, radius, remainingMinutes) {
+      if (remainingMinutes <= 0) return;
+
+      const start = -Math.PI / 2;
+      const end = start - (Math.min(remainingMinutes, 60) / 60) * Math.PI * 2;
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, radius, start, end, true);
+      ctx.closePath();
+      ctx.fillStyle = '#f43f43';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(end) * radius, cy + Math.sin(end) * radius);
+      ctx.lineWidth = Math.max(2, radius * 0.018);
+      ctx.strokeStyle = '#323232';
+      ctx.stroke();
+    }
+
+    function drawFace(remainingMinutes) {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const size = Math.max(320, Math.round(Math.min(rect.width, rect.height) * dpr));
+      if (canvas.width !== size || canvas.height !== size) {
+        canvas.width = size;
+        canvas.height = size;
+      }
+
+      ctx.clearRect(0, 0, size, size);
+      ctx.save();
+      ctx.scale(dpr, dpr);
+
+      const cssSize = size / dpr;
+      const cx = cssSize / 2;
+      const cy = cssSize / 2;
+      const radius = cssSize * 0.37;
+      const labelRadius = cssSize * 0.455;
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fillStyle = '#242424';
+      ctx.fill();
+
+      drawWedge(cx, cy, radius, remainingMinutes);
+
+      for (let minute = 0; minute < 60; minute += 1) {
+        const angle = -Math.PI / 2 - (minute / 60) * Math.PI * 2;
+        const isFive = minute % 5 === 0;
+        const inner = radius * (isFive ? 0.73 : 0.82);
+        const outer = radius * 0.98;
+        const x1 = cx + Math.cos(angle) * inner;
+        const y1 = cy + Math.sin(angle) * inner;
+        const x2 = cx + Math.cos(angle) * outer;
+        const y2 = cy + Math.sin(angle) * outer;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.lineWidth = isFive ? radius * 0.018 : radius * 0.01;
+        ctx.strokeStyle = minute <= remainingMinutes && remainingMinutes < 60 ? 'rgba(255,255,255,0.12)' : '#555';
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = '#a7a7a7';
+      ctx.font = `${Math.max(14, cssSize * 0.033)}px Inter, system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let minute = 0; minute < 60; minute += 5) {
+        const angle = -Math.PI / 2 - (minute / 60) * Math.PI * 2;
+        const x = cx + Math.cos(angle) * labelRadius;
+        const y = cy + Math.sin(angle) * labelRadius;
+        ctx.fillText(String(minute), x, y);
+      }
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 0.012, 0, Math.PI * 2);
+      ctx.fillStyle = '#f43f43';
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function render() {
+      const now = new Date();
+      nowText.textContent = formatClock(now);
+      centerReadout.classList.toggle('is-hidden', !state.showCountdown);
+
+      let remainingMs = 0;
+      if (state.target) {
+        remainingMs = state.target.getTime() - now.getTime();
+        if (remainingMs <= 0) {
+          remainingMs = 0;
+          if (!state.expired) {
+            state.expired = true;
+            statusText.textContent = `Target reached at ${formatClock(state.target)}.`;
+            statusText.classList.remove('error');
+          }
+        }
+        const remainingMinutes = remainingMs / 60000;
+        countdown.textContent = formatRemaining(remainingMs);
+        countdownLabel.textContent = remainingMs > 60 * 60 * 1000
+          ? 'More than one hour remaining'
+          : 'Remaining';
+        targetText.textContent = formatClock(state.target);
+        remainingText.textContent = remainingMs > 60 * 60 * 1000
+          ? `${Math.ceil(remainingMs / 60000)} min total`
+          : `${Math.ceil(remainingMs / 60000)} min`;
+        progressBar.style.width = `${Math.min(100, (remainingMinutes / 60) * 100)}%`;
+        drawFace(remainingMinutes);
+      } else {
+        countdown.textContent = '--:--';
+        countdownLabel.textContent = 'Set a target time';
+        targetText.textContent = '--';
+        remainingText.textContent = '--';
+        progressBar.style.width = '0%';
+        drawFace(0);
+      }
+    }
+
+    targetForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const target = parseTarget(targetInput.value);
+      if (!target) {
+        statusText.textContent = 'Enter a valid target, such as 1:15pm, 13:15, or 45m.';
+        statusText.classList.add('error');
+        return;
+      }
+      setTarget(target);
+    });
+
+    document.querySelectorAll('[data-add-minutes]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const minutes = Number(button.dataset.addMinutes);
+        setTarget(new Date(Date.now() + minutes * 60 * 1000));
+      });
+    });
+
+    fullscreenBtn.addEventListener('click', async () => {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen().catch(() => {});
+        document.body.classList.add('full-screen');
+        fullscreenBtn.textContent = 'Exit full screen';
+      } else {
+        await document.exitFullscreen().catch(() => {});
+      }
+      render();
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+      const isFullscreen = Boolean(document.fullscreenElement);
+      document.body.classList.toggle('full-screen', isFullscreen);
+      fullscreenBtn.textContent = isFullscreen ? 'Exit full screen' : 'Full screen';
+      render();
+    });
+
+    resetBtn.addEventListener('click', clearTarget);
+    countdownToggle.addEventListener('change', () => {
+      state.showCountdown = countdownToggle.checked;
+      render();
+    });
+    window.addEventListener('resize', render);
+
+    const defaultTarget = new Date();
+    defaultTarget.setMinutes(defaultTarget.getMinutes() + 30, 0, 0);
+    setTarget(defaultTarget);
+    setInterval(render, 250);
+  </script>
+</body>
+</html>
